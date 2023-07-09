@@ -1,0 +1,64 @@
+# This is a basic workflow to help you get started with Actions
+
+name: release-cycle
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  release:
+    # The type of runner that the job will run on
+    runs-on: [self-hosted] 
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+      
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install semantic releae dependencies
+        run: |
+          npm install -g semantic-release
+          npm install -g @semantic-release/git @semantic-release/github @semantic-release/changelog @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/exec
+            
+      - name: Set short git commit SHA
+        id: vars
+        run: |
+          calculatedSha=$(git rev-parse --short ${{ github.sha }})
+          echo "::set-output name=short_sha::$calculatedSha"
+
+      - name: setup and execute semantic-release
+        id: semantic_release
+        run: |
+          cat <<EOF>> .releaserc.yml
+          branches:
+          - main
+          - name: dev
+            prerelease: true
+          plugins:
+          - "@semantic-release/commit-analyzer"
+          - "@semantic-release/release-notes-generator"
+          - "@semantic-release/github"
+          - - "@semantic-release/exec"
+            - verifyReleaseCmd: echo \${nextRelease.version} > nextVersion
+          EOF
+          semantic-release -r ${{ github.server_url }}/${{ github.repository }}.git
+          test -f nextVersion && echo "SRTAG=v$(cat nextVersion)" >> ${GITHUB_OUTPUT} || echo "SRTAG=${{ steps.vars.outputs.short_sha }}" >> ${GITHUB_OUTPUT}
+          # echo $SRTAG
+          # cat nextVersion
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
