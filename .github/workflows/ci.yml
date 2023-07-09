@@ -38,7 +38,8 @@ jobs:
         id: vars
         run: |
           calculatedSha=$(git rev-parse --short ${{ github.sha }})
-          echo "::set-output name=short_sha::$calculatedSha"
+          echo "short_sha=$calculatedSha" >> $GITHUB_OUTPUT
+
 
       - name: setup and execute semantic-release
         id: semantic_release
@@ -57,7 +58,7 @@ jobs:
           EOF
           semantic-release -r ${{ github.server_url }}/${{ github.repository }}.git
           test -f nextVersion && echo "SRTAG=v$(cat nextVersion)" >> ${GITHUB_OUTPUT} || echo "SRTAG=${{ steps.vars.outputs.short_sha }}" >> ${GITHUB_OUTPUT}
-          # echo $SRTAG
+          echo ${{ steps.vars.outputs.short_sha }}
           # cat nextVersion
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
